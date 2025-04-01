@@ -402,10 +402,10 @@ FodyWeavers.xsd
 ### VisualStudio Patch ###
 # Additional files built by Visual Studio
 
-**.sln
-**.vcxproj
-**.vcxproj.filters
-**.vcxproj.user
+*.sln
+*.vcxproj*
+*.vcxproj
+*.vcxproj
 
 Custom Computer and Programing Language/
 
