@@ -1,6 +1,7 @@
 export module lexer;
 
 import std;
+import lookahead;
 
 // Returns the escape character made by prepending \ to a given character
 // Ex: n -> '\n'
@@ -11,7 +12,7 @@ bool IsHexNotation(const std::string& str);
 bool IsBinNotation(const std::string& str);
 bool IsDecNotation(const std::string& str);
 
-enum class TokenType {
+export enum class TokenType {
 	END_OF_LINE,
 	END_OF_FILE,
 
@@ -48,8 +49,6 @@ public:
 
 	bool Good() const;
 private:
-	std::optional<char> At(size_t offset = 0) const;
-	char Eat();
 	void AddToken(TokenType type, std::string_view lit = "");
 
 	void Log(std::string_view msg) const;
@@ -59,10 +58,9 @@ private:
 	bool logging;
 	bool good = true;
 
-	const std::string& src;
 	std::vector<Token> tokens;
 
-	size_t index = 0;
+	Lookahead<char, std::string> src;
 	unsigned int line = 1;
 	unsigned int col = 0;
 };
@@ -78,33 +76,33 @@ std::vector<Token> Lexer::Tokenize() {
 
 	std::string buf;
 
-	while (At().has_value()) {
+	while (src.At().has_value()) {
 		buf.clear();
 
 		// Empty line
-		if (std::isspace(At().value())) {
+		if (std::isspace(src.At().value())) {
 			// If there is a newline, add a token and increment line
-			if (At().value() == '\n') {
+			if (src.At().value() == '\n') {
 				AddToken(TokenType::END_OF_LINE);
 				col = 0;
 				line++;
 			}
-			Eat();
+			src.Eat();
 		}
 		// Comments
-		else if (At().value() == ';') {
+		else if (src.At().value() == ';') {
 			// Eat characters until end of line, effectively flushing it
 			// TODO: Add multi-line comments, using /* ... */ perhaps?
-			while (At().has_value() && At().value() != '\n') {
-				Eat();
+			while (src.At().has_value() && src.At().value() != '\n') {
+				src.Eat();
 			}
 		}
 		// Labels
-		else if (At().value() == '.') {
+		else if (src.At().value() == '.') {
 			// Eat the '.' and fill buffer
-			Eat();
-			while (At().has_value() && std::isalnum(At().value())) {
-				buf.push_back(Eat());
+			src.Eat();
+			while (src.At().has_value() && std::isalnum(src.At().value())) {
+				buf.push_back(src.Eat());
 			}
 
 			if (buf.empty()) {
@@ -123,11 +121,11 @@ std::vector<Token> Lexer::Tokenize() {
 			AddToken(TokenType::LABEL, buf);
 		}
 		// Section
-		else if (At().value() == '@') {
+		else if (src.At().value() == '@') {
 			// Eat the '@' and fill buffer
-			Eat();
-			while (At().has_value() && std::isalnum(At().value())) {
-				buf.push_back(Eat());
+			src.Eat();
+			while (src.At().has_value() && std::isalnum(src.At().value())) {
+				buf.push_back(src.Eat());
 			}
 
 			if (buf.empty()) {
@@ -148,16 +146,16 @@ std::vector<Token> Lexer::Tokenize() {
 		// String/character literal
 		// Code for each case was so similar I combined them into one section.
 		// Both cases differs in a few lines, so I opted for if-statements instead.
-		else if (At().value() == '"' || At().value() == '\'') {
+		else if (src.At().value() == '"' || src.At().value() == '\'') {
 			// Store what kind of quote is used (" for strings, ' for characters)
-			char quoteType = Eat();
+			char quoteType = src.Eat();
 
 			// Fill buffer until the literal is closed
 			// Might be a waste to read so much from a character literal, but if the literal is
 			// valid (which it should be to begin with) it shouldn't be a problem.
-			while (At().has_value() && At().value() != quoteType) {
+			while (src.At().has_value() && src.At().value() != quoteType) {
 				// If there's a newline before the literal is closed, it's invalid
-				if (At().value() == '\n') {
+				if (src.At().value() == '\n') {
 					if (quoteType == '"') {
 						// Ex: "abc
 						Error("String literal missing terminating quote.");
@@ -169,24 +167,24 @@ std::vector<Token> Lexer::Tokenize() {
 					break;
 				}
 
-				char c = Eat();
+				char c = src.Eat();
 
 				// If the character is a '\', the next character is an escape-character
 				// Note: If the next character is not a valid escape-character, it is 
 				// interpreted as is. For example: '\p' just becomes 'p'
 				// A warning will be printed to the screen.
-				if (c == '\\' && At().has_value()) {
-					std::optional<char> escapeChar = MakeEscapeCharacter(At().value());
+				if (c == '\\' && src.At().has_value()) {
+					std::optional<char> escapeChar = MakeEscapeCharacter(src.At().value());
 
 					if (escapeChar.has_value()) {
 						buf.push_back(escapeChar.value());
 					}
 					else {
 						// Ex: '\p'
-						Error(std::string("Unrecognized escape character \'\\") + At().value() + "\'.", "", false);
-						buf.push_back(At().value());
+						Error(std::string("Unrecognized escape character \'\\") + src.At().value() + "\'.", "", false);
+						buf.push_back(src.At().value());
 					}
-					Eat();
+					src.Eat();
 				}
 				else {
 					buf.push_back(c);
@@ -194,8 +192,8 @@ std::vector<Token> Lexer::Tokenize() {
 			}
 
 			// Eat the terminating quote (if it exists)
-			if (At().value() == quoteType)
-				Eat();
+			if (src.At().value() == quoteType)
+				src.Eat();
 
 			// Add the token. 
 			// If it's a character literal literal a couple of checks must be made 
@@ -223,11 +221,11 @@ std::vector<Token> Lexer::Tokenize() {
 		// Integer literal
 		// TODO: More extensive test.
 		// I am not 100% this gives correct results, for example during overflows or underflows
-		else if (std::isdigit(At().value()) || At().value() == '-') {
+		else if (std::isdigit(src.At().value()) || src.At().value() == '-') {
 			// Fill buffer
-			buf.push_back(Eat());
-			while (At().has_value() && std::isalnum(At().value())) {
-				buf.push_back(Eat());
+			buf.push_back(src.Eat());
+			while (src.At().has_value() && std::isalnum(src.At().value())) {
+				buf.push_back(src.Eat());
 			}
 
 			// Check and store if the number is negative
@@ -278,10 +276,10 @@ std::vector<Token> Lexer::Tokenize() {
 		// Identifiers and instructions
 		// Distinction between registers, instructions and identifiers happen during generation
 		// For now, all are handled as identifiers
-		else if (std::isalpha(At().value())) {
+		else if (std::isalpha(src.At().value())) {
 			// Fill buffer
-			while (At().has_value() && std::isalnum(At().value())) {
-				buf.push_back(Eat());
+			while (src.At().has_value() && std::isalnum(src.At().value())) {
+				buf.push_back(src.Eat());
 			}
 
 			// Add token
@@ -289,8 +287,8 @@ std::vector<Token> Lexer::Tokenize() {
 		}
 		// Unknown
 		else {
-			Error(std::string("Invalid or unknown symbol \'") + At().value() + "\'.");
-			Eat();
+			Error(std::string("Invalid or unknown symbol \'") + src.At().value() + "\'.");
+			src.Eat();
 		}
 	}
 
@@ -304,21 +302,6 @@ std::vector<Token> Lexer::Tokenize() {
 
 bool Lexer::Good() const {
 	return good;
-}
-
-std::optional<char> Lexer::At(size_t offset) const {
-	if (index + offset >= src.length()) {
-		return {};
-	}
-
-	return src.at(index + offset);
-}
-
-char Lexer::Eat() {
-	char c = src.at(index);
-	index++;
-	col++;
-	return c;
 }
 
 void Lexer::AddToken(TokenType type, std::string_view lit) {
@@ -356,6 +339,8 @@ std::optional<char> MakeEscapeCharacter(char c) {
 		return '\t';
 	case 'n':
 		return '\n';
+	case '0':
+		return '\0';
 	default:
 		return std::nullopt;
 	}
