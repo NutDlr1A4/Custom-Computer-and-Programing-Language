@@ -1,9 +1,21 @@
+/*
+* The 'Lookahead' container is basically just a container that is at a spesific index, and
+* you can either read the value (or check if it exists thanks to std::optional) at that index, 
+* or 'eat' it. Eating a value returns it and increments the index.
+* 
+* I made this class because I realized I would need a similar behaviour in different modules of the assembler.
+* For example:
+*	- Reading characters one after one from a string
+*	- Reading tokens one after one from a vector of tokens
+*	and maybe more later...
+*/
+
 export module lookahead;
 
 import std;
 
 export
-template<typename T, typename Container = std::vector<T>>
+template<typename T, typename Container = std::vector<T>> // Not proud of this template, but it works for now
 class Lookahead {
 public:
 	Lookahead(const Container& cont)

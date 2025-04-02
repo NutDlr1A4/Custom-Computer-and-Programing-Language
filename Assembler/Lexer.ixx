@@ -1,7 +1,20 @@
+/*
+* The lexer (also called the tokenizer) has one job, and that is to perform a 'lexical analysis' of the source text,
+* which is just converting the source text into more manageable 'tokens'.
+* 
+* A token is essentialy a group of characters having collective meaning, like a variable name or an integer literal.
+* By having to manage a list of tokens with set types instead of a loooooong array of characters, it gets much easier 
+* to check for syntax errors and generate code later down the line.
+* This might be a little overkill for this tiny, little assembler, but it is also important for compilers!
+* 
+* Wikipedia: https://en.wikipedia.org/wiki/Lexical_analysis#Lexical_token_and_lexical_tokenization
+*/
+
 export module lexer;
 
 import std;
 import lookahead;
+import errorlog;
 
 // Returns the escape character made by prepending \ to a given character
 // Ex: n -> '\n'
@@ -43,20 +56,15 @@ export struct Token {
 
 export class Lexer {
 public:
-	Lexer(const std::string& src, bool doLogging = false);
+	Lexer(const std::string& src, const ErrorLog& logger);
 
 	std::vector<Token> Tokenize();
 
 	bool Good() const;
 private:
 	void AddToken(TokenType type, std::string_view lit = "");
-
-	void Log(std::string_view msg) const;
-	void Error(std::string_view msg, std::string_view desc = "", bool fatal = true);
-
 private:
-	bool logging;
-	bool good = true;
+	ErrorLog logger;
 
 	std::vector<Token> tokens;
 
@@ -65,14 +73,14 @@ private:
 	unsigned int col = 0;
 };
 
-Lexer::Lexer(const std::string& src, bool doLogging)
+Lexer::Lexer(const std::string& src, const ErrorLog& logger)
 	:
-	logging(doLogging),
-	src(src) {
-}
+	logger("Lexer", logger),
+	src(src)
+{}
 
 std::vector<Token> Lexer::Tokenize() {
-	Log("Tokenizing source file...");
+	logger.Log("Tokenizing source file...");
 
 	std::string buf;
 
@@ -107,13 +115,13 @@ std::vector<Token> Lexer::Tokenize() {
 
 			if (buf.empty()) {
 				// Ex: .
-				Error("Empty label definition.");
+				logger.Error("Empty label definition.", "", line);
 				continue;
 			}
 
 			if (std::isdigit(buf.front())) {
 				// Ex: .2label
-				Error("Invalid label defintion \"" + buf + "\".", "Label name can't begin with a digit.");
+				logger.Error("Invalid label defintion \"" + buf + "\".", "Label name can't begin with a digit.", line);
 				continue;
 			}
 
@@ -130,13 +138,13 @@ std::vector<Token> Lexer::Tokenize() {
 
 			if (buf.empty()) {
 				// Ex: @
-				Error("Empty section definiton.");
+				logger.Error("Empty section definiton.", "", line);
 				continue;
 			}
 
 			if (std::isdigit(buf.front())) {
 				// Ex: @2section
-				Error("Invalid section defintion \"" + buf + "\".", "Section name can't begin with a digit.");
+				logger.Error("Invalid section defintion \"" + buf + "\".", "Section name can't begin with a digit.", line);
 				continue;
 			}
 
@@ -158,11 +166,11 @@ std::vector<Token> Lexer::Tokenize() {
 				if (src.At().value() == '\n') {
 					if (quoteType == '"') {
 						// Ex: "abc
-						Error("String literal missing terminating quote.");
+						logger.Error("String literal missing terminating quote.", "", line);
 					}
 					else {
 						// Ex: 'a
-						Error("Character literal missing terminating quote.");
+						logger.Error("Character literal missing terminating quote.", "", line);
 					}
 					break;
 				}
@@ -181,7 +189,9 @@ std::vector<Token> Lexer::Tokenize() {
 					}
 					else {
 						// Ex: '\p'
-						Error(std::string("Unrecognized escape character \'\\") + src.At().value() + "\'.", "", false);
+						logger.Warning(std::string("Unrecognized escape character \'\\") + src.At().value() + "\'.", 
+									   std::string("Interpreted as \'") + src.At().value() + "\'",
+									   line);
 						buf.push_back(src.At().value());
 					}
 					src.Eat();
@@ -204,13 +214,13 @@ std::vector<Token> Lexer::Tokenize() {
 			else {
 				// Ex: ''
 				if (buf.length() == 0) {
-					Error("Empty character literal.");
+					logger.Error("Empty character literal.", "", line);
 					continue;
 				}
 
 				// Ex: 'abc'
 				if (buf.length() > 1) {
-					Error("Character literal contains more than one character.", "Use double quotes(\") to define string literals.");
+					logger.Error("Character literal contains more than one character.", "Use double quotes(\") to define string literals.", line);
 					continue;
 				}
 
@@ -232,7 +242,7 @@ std::vector<Token> Lexer::Tokenize() {
 			bool negative = false;
 			if (buf.at(0) == '-') {
 				if (buf.size() == 1) {
-					Error("Empty integer literal after \'-\'.");
+					logger.Error("Empty integer literal after \'-\'.", "", line);
 					continue;
 				}
 
@@ -251,7 +261,7 @@ std::vector<Token> Lexer::Tokenize() {
 				buf = buf.substr(2);
 			}
 			else if (!IsDecNotation(buf)) {
-				Error("Invalid integer literal format \"" + buf + "\".", "Only decimal, binary (0b) and hexadecimal (0x) are supported.");
+				logger.Error("Invalid integer literal format \"" + buf + "\".", "Only decimal, binary (0b) and hexadecimal (0x) are supported.", line);
 				continue;
 			}
 
@@ -261,13 +271,13 @@ std::vector<Token> Lexer::Tokenize() {
 			if (negative) {
 				value = -value;
 				if (value < std::numeric_limits<std::int16_t>::min())
-					Error("Integer literal \"-" + buf + "\" too small to be represented with 16 bits.", "", false);
+					logger.Warning("Integer literal \"-" + buf + "\" too small to be represented with 16 bits.", "", line);
 				if (value > std::numeric_limits<std::int16_t>::max())
-					Error("Integer literal \"-" + buf + "\" too large to be represented with 16 bits.", "", false);
+					logger.Warning("Integer literal \"-" + buf + "\" too large to be represented with 16 bits.", "", line);
 			}
 			else {
 				if (value > std::numeric_limits<std::uint16_t>::max())
-					Error("Integer literal \"" + buf + "\" too large to be represented with 16 bits.", "", false);
+					logger.Warning("Integer literal \"" + buf + "\" too large to be represented with 16 bits.", "", line);
 			}
 
 			// Cast value to 16-bits and add the token
@@ -287,7 +297,7 @@ std::vector<Token> Lexer::Tokenize() {
 		}
 		// Unknown
 		else {
-			Error(std::string("Invalid or unknown symbol \'") + src.At().value() + "\'.");
+			logger.Error(std::string("Invalid or unknown symbol \'") + src.At().value() + "\'.", "", line);
 			src.Eat();
 		}
 	}
@@ -295,38 +305,18 @@ std::vector<Token> Lexer::Tokenize() {
 	AddToken(TokenType::END_OF_FILE);
 
 	if (Good())
-		Log("Tokenization complete!");
+		logger.Log("Tokenization complete!");
 
 	return tokens;
 }
 
 bool Lexer::Good() const {
-	return good;
+	return logger.Good();
 }
 
 void Lexer::AddToken(TokenType type, std::string_view lit) {
 	Token t(type, line, col, lit);
 	tokens.push_back(t);
-}
-
-void Lexer::Log(std::string_view msg) const {
-	if (logging)
-		std::println("[Lexer] {}", msg);
-}
-
-void Lexer::Error(std::string_view msg, std::string_view desc, bool fatal) {
-	if (logging) {
-		if (fatal) {
-			std::println("[Lexer] Error   (line {}): {}", line, msg);
-		}
-		else {
-			std::println("[Lexer] Warning (line {}): {}", line, msg);
-		}
-		if (!desc.empty()) std::println("\t{}", desc);
-	}
-
-	if (fatal)
-		good = false;
 }
 
 std::optional<char> MakeEscapeCharacter(char c) {

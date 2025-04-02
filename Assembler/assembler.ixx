@@ -1,67 +1,71 @@
 export module assembler;
 
-import lexer;
 import std;
+
+import lexer;
+import errorlog;
 
 export class Assembler {
 public:
-	std::vector<std::uint8_t> Assemble(std::istream& file, bool doLogging = false);
+	Assembler(std::ostream& ostream_log, LoggingLevel logging_level);
 
-	void Log(std::string_view msg) const;
-	void Error(std::string_view msg, std::string_view desc = "", bool fatal = true);
+	std::vector<std::uint8_t> Assemble(std::istream& file);
+	std::vector<std::uint8_t> Assemble(const std::string& input_filepath);
+	std::vector<std::uint8_t> AssembleToFile(const std::string& input_filepath, const std::string& output_filepath);
 
 	bool Good() const;
 private:
-	bool logging = false;
-	bool good = true;
+	ErrorLog logger;
 };
 
+Assembler::Assembler(std::ostream& ostream_log, LoggingLevel logging_level) 
+	:
+	logger("Assembler", ostream_log, logging_level)
+{}
 
-
-std::vector<std::uint8_t> Assembler::Assemble(std::istream& content, bool doLogging) {
-	logging = doLogging;
-
-	Log("Assembling...");
+std::vector<std::uint8_t> Assembler::Assemble(std::istream& file) {
+	logger.Log("Assembling...");
 
 	std::stringstream ss;
-	ss << content.rdbuf();
+	ss << file.rdbuf();
 
 	std::string s = ss.str() + "\n";
 
-	Lexer lexer(s, logging);
+	Lexer lexer(s, logger);
 	std::vector<Token> tokens = std::move(lexer.Tokenize());
 	if (!lexer.Good()) {
-		std::println("One or more errors have occured, and the program could not assemble succesfully.");
-		good = false;
+		logger.FinalError();
 		return {};
 	}
 
-	if (Good())
-		Log("Assembling complete!");
+	logger.Log("Assembling complete!");
 
+	// Somewhere above should be a vector of bytes, return that here!
 	return {};
 }
 
-void Assembler::Log(std::string_view msg) const {
-	if (logging)
-		std::println("[Assembler] {}", msg);
+std::vector<std::uint8_t> Assembler::Assemble(const std::string& input_filepath) {
+	logger.Log("Assembling file at \"" + input_filepath + "\"");
+
+	std::ifstream file(input_filepath, std::ios::in);
+	if (!file) {
+		logger.Error("Could not open file at path \"" + input_filepath + "\"");
+
+		if (!Good()) {
+			logger.FinalError();
+			return {};
+		}
+	}
+	
+	return std::move(Assemble(file));
 }
 
-void Assembler::Error(std::string_view msg, std::string_view desc, bool fatal) {
-	if (logging) {
-		if (fatal) {
-			std::println("[Assembler] Error  : {}", msg);
-		}
-		else {
-			std::println("[Assembler] Warning: {}", msg);
-		}
-		if (!desc.empty()) std::println("\t{}", desc);
-	}
-
-	if (fatal)
-		good = false;
+std::vector<std::uint8_t> Assembler::AssembleToFile(const std::string& input_filepath, const std::string& output_filepath) {
+	logger.Error("AssembleToFile() has not been implemented yet!");
+	return {};
 }
 
 bool Assembler::Good() const {
-	return good;
+	return logger.Good();
 }
+

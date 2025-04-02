@@ -14,3 +14,12 @@
 .helloworld		
 			"Hello World!\n\0"
 
+
+
+			asdasd
+			"aasd
+.123123
+
+'\s'
+
+; I know it's full of errors, leave me alone :(
