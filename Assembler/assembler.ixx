@@ -3,6 +3,8 @@ export module assembler;
 import std;
 
 import lexer;
+import generation;
+
 import errorlog;
 
 export class Assembler {
@@ -38,10 +40,16 @@ std::vector<std::uint8_t> Assembler::Assemble(std::istream& file) {
 		return {};
 	}
 
+	Generator gen(tokens, logger);
+	std::vector<std::uint8_t> data = std::move(gen.Generate());
+	if (!gen.Good()) {
+		logger.FinalError();
+		return {};
+	}
+
 	logger.Log("Assembling complete!");
 
-	// Somewhere above should be a vector of bytes, return that here!
-	return {};
+	return data;
 }
 
 std::vector<std::uint8_t> Assembler::Assemble(const std::string& input_filepath) {

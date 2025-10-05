@@ -5,7 +5,7 @@ import errorlog;
 int main() {
 	std::vector<std::string> test_file_names = {
 		"test",
-		"helloworld"
+		//"helloworld"
 	};
 
 	for (std::string name : test_file_names) {
