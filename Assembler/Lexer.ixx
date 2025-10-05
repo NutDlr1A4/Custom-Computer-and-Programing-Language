@@ -91,7 +91,9 @@ std::vector<Token> Lexer::Tokenize() {
 		if (std::isspace(src.At().value())) {
 			// If there is a newline, add a token and increment line
 			if (src.At().value() == '\n') {
-				AddToken(TokenType::END_OF_LINE);
+				if (tokens.size() != 0 && tokens.back().type != TokenType::END_OF_LINE) {
+					AddToken(TokenType::END_OF_LINE);
+				}
 				col = 0;
 				line++;
 			}

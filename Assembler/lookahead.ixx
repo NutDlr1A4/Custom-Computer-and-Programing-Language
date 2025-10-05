@@ -39,6 +39,9 @@ public:
 	void Seek(std::size_t new_index) {
 		index = new_index;
 	}
+	std::size_t Index() const {
+		return index;
+	}
 	void Reset() {
 		Seek(0);
 	}
