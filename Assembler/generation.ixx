@@ -7,7 +7,7 @@
 export module generation;
 
 import std;
-import lexer;
+import token;
 import lookahead;
 import errorlog;
 
@@ -22,6 +22,8 @@ public:
 private:
 	void DefineProgramLabels();
 	void DefineDataLabels();
+
+	void ParseInstruction();
 
 private:
 	void FlushLine();
@@ -57,6 +59,7 @@ std::vector<std::uint8_t> Generator::Generate() {
 	logger.Log("Generating program data...");
 
 	bool prog_found = false;
+	std::size_t prog_index = 0;
 	while (tokens.At().value().type != TokenType::END_OF_FILE) {
 		Token t = tokens.Eat();
 
@@ -79,6 +82,7 @@ std::vector<std::uint8_t> Generator::Generate() {
 		// Check valid sections, if none is found raise an error
 		if (t.lit == "prog") {
 			prog_found = true;
+			prog_index = tokens.Index();
 			DefineProgramLabels();
 		}
 		else if (t.lit == "data") {
@@ -94,14 +98,26 @@ std::vector<std::uint8_t> Generator::Generate() {
 	// There needs to be a program section (obviously)
 	if (!prog_found) {
 		logger.Error("A program section (@prog) was not found.");
+	}
+
+	if (!Good()) {
 		return {};
 	}
 
-	if (Good()) {
-		logger.Log("Program generation complete!");
+	tokens.Seek(prog_index);
+	while (tokens.At().value().type != TokenType::END_OF_FILE) {
+		if (tokens.At().value().type == TokenType::SECTION) {
+			break;
+		}
+
+		if (tokens.At().value().type == TokenType::LABEL) {
+			tokens.Eat();
+		}
+
+		ParseInstruction();
 	}
 
-	return {};
+	return program;
 }
 
 bool Generator::Good() const {
@@ -237,6 +253,10 @@ void Generator::DefineDataLabels() {
 	}
 
 	logger.Log("Data section parsed!");
+}
+
+void Generator::ParseInstruction() {
+	// Do something smart
 }
 
 // TODO: Clean this up please, don't repeat yourself

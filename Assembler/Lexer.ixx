@@ -15,6 +15,7 @@ export module lexer;
 import std;
 import lookahead;
 import errorlog;
+export import token;
 
 // Returns the escape character made by prepending \ to a given character
 // Ex: n -> '\n'
@@ -24,35 +25,6 @@ std::optional<char> MakeEscapeCharacter(char c);
 bool IsHexNotation(const std::string& str);
 bool IsBinNotation(const std::string& str);
 bool IsDecNotation(const std::string& str);
-
-export enum class TokenType {
-	END_OF_LINE,
-	END_OF_FILE,
-
-	LABEL,
-	SECTION,
-
-	INT_LIT,
-	STR_LIT,
-	IDENT
-};
-
-export struct Token {
-	Token() = delete;
-	Token(TokenType type, int line, int col, std::string_view lit = "")
-		:
-		type(type),
-		lit(lit),
-		line(line),
-		col(col) {
-	}
-
-	TokenType type;
-	std::string lit = "";
-
-	int line = 0;
-	int col = 0;
-};
 
 export class Lexer {
 public:
