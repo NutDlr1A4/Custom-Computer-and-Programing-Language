@@ -1,49 +1,37 @@
-/*
-* The lexer (also called the tokenizer) has one job, and that is to perform a 'lexical analysis' of the source text,
-* which is just converting the source text into more manageable 'tokens'.
-* 
-* A token is essentialy a group of characters having collective meaning, like a variable name or an integer literal.
-* By having to manage a list of tokens with set types instead of a loooooong array of characters, it gets much easier 
-* to check for syntax errors and generate code later down the line.
-* This might be a little overkill for this tiny, little assembler, but it is also important for compilers!
-* 
-* Wikipedia: https://en.wikipedia.org/wiki/Lexical_analysis#Lexical_token_and_lexical_tokenization
-*/
+#include "lexer.h"
 
-export module lexer;
+std::optional<char> MakeEscapeCharacter(char c) {
+	switch (c) {
+	case '\'':
+	case '\"':
+	case '\\':
+		return c;
+	case 't':
+		return '\t';
+	case 'n':
+		return '\n';
+	case '0':
+		return '\0';
+	default:
+		return std::nullopt;
+	}
+}
 
-import std;
-import lookahead;
-import errorlog;
-export import token;
+bool IsHexNotation(const std::string& str) {
+	return str.compare(0, 2, "0x") == 0
+		&& str.size() > 2
+		&& str.find_first_not_of("0123456789abcdefABCDEF", 2) == std::string::npos;
+}
 
-// Returns the escape character made by prepending \ to a given character
-// Ex: n -> '\n'
-std::optional<char> MakeEscapeCharacter(char c);
+bool IsBinNotation(const std::string& str) {
+	return str.compare(0, 2, "0b") == 0
+		&& str.size() > 2
+		&& str.find_first_not_of("01", 2) == std::string::npos;
+}
 
-// Helper functions for checking number notation in different bases
-bool IsHexNotation(const std::string& str);
-bool IsBinNotation(const std::string& str);
-bool IsDecNotation(const std::string& str);
-
-export class Lexer {
-public:
-	Lexer(const std::string& src, const ErrorLog& logger);
-
-	std::vector<Token> Tokenize();
-
-	bool Good() const;
-private:
-	void AddToken(TokenType type, std::string_view lit = "");
-private:
-	ErrorLog logger;
-
-	std::vector<Token> tokens;
-
-	Lookahead<char, std::string> src;
-	unsigned int line = 1;
-	unsigned int col = 0;
-};
+bool IsDecNotation(const std::string& str) {
+	return str.find_first_not_of("0123456789") == std::string::npos;
+}
 
 Lexer::Lexer(const std::string& src, const ErrorLog& logger)
 	:
@@ -291,37 +279,4 @@ bool Lexer::Good() const {
 void Lexer::AddToken(TokenType type, std::string_view lit) {
 	Token t(type, line, col, lit);
 	tokens.push_back(t);
-}
-
-std::optional<char> MakeEscapeCharacter(char c) {
-	switch (c) {
-	case '\'':
-	case '\"':
-	case '\\':
-		return c;
-	case 't':
-		return '\t';
-	case 'n':
-		return '\n';
-	case '0':
-		return '\0';
-	default:
-		return std::nullopt;
-	}
-}
-
-bool IsHexNotation(const std::string& str) {
-	return str.compare(0, 2, "0x") == 0
-		&& str.size() > 2
-		&& str.find_first_not_of("0123456789abcdefABCDEF", 2) == std::string::npos;
-}
-
-bool IsBinNotation(const std::string& str) {
-	return str.compare(0, 2, "0b") == 0
-		&& str.size() > 2
-		&& str.find_first_not_of("01", 2) == std::string::npos;
-}
-
-bool IsDecNotation(const std::string& str) {
-	return str.find_first_not_of("0123456789") == std::string::npos;
 }

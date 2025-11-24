@@ -10,11 +10,11 @@
 *	and maybe more later...
 */
 
-export module lookahead;
+#pragma once
 
-import std;
+#include <vector>
+#include <optional>
 
-export
 template<typename T, typename Container = std::vector<T>> // Not proud of this template, but it works for now
 class Lookahead {
 public:
@@ -39,12 +39,15 @@ public:
 	void Seek(std::size_t new_index) {
 		index = new_index;
 	}
+
 	std::size_t Index() const {
 		return index;
 	}
+
 	void Reset() {
 		Seek(0);
 	}
+
 private:
 	const Container& src;
 	std::size_t index = 0;

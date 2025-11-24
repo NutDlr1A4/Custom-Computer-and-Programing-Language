@@ -1,6 +1,4 @@
-import std;
-import assembler;
-import errorlog;
+#include "assembler.h"
 
 int main() {
 	std::vector<std::string> test_file_names = {
