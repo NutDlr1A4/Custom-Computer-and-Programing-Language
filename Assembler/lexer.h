@@ -35,7 +35,7 @@ public:
 
 	bool Good() const;
 private:
-	void AddToken(TokenType type, std::string_view lit = "");
+	void AddToken(TokenType type, std::string_view lit = "", std::uint16_t value = 0);
 private:
 	ErrorLog logger;
 

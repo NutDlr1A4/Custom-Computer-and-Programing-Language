@@ -11,6 +11,7 @@
 #include "token.h"
 #include "lookahead.hpp"
 #include "errorlog.h"
+#include "signatures.h"
 
 class Generator {
 public:
@@ -24,7 +25,7 @@ private:
 	void DefineProgramLabels();
 	void DefineDataLabels();
 
-	void ParseInstruction();
+	void ParseProgramSection();
 
 private:
 	void FlushLine();
@@ -35,6 +36,8 @@ private:
 	ErrorLog logger;
 	Lookahead<Token> tokens;
 
+	std::size_t prog_size = 0;
+	std::size_t data_size = 0;
 	std::vector<std::uint8_t> program;
 
 	struct LabelData {

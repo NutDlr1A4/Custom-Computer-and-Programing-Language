@@ -1,5 +1,7 @@
 #include "lexer.h"
 
+#include "signatures.h"
+
 std::optional<char> MakeEscapeCharacter(char c) {
 	switch (c) {
 	case '\'':
@@ -84,6 +86,12 @@ std::vector<Token> Lexer::Tokenize() {
 			if (std::isdigit(buf.front())) {
 				// Ex: .2label
 				logger.Error("Invalid label defintion \"" + buf + "\".", "Label name can't begin with a digit.", line);
+				continue;
+			}
+
+			if (IsReservedKeyword(buf)) {
+				// Ex: .ld
+				logger.Error("Invalid label defintion \"" + buf + "\".", "Label name is a reserved keyword.", line);
 				continue;
 			}
 
@@ -187,7 +195,7 @@ std::vector<Token> Lexer::Tokenize() {
 				}
 
 				// Add token
-				AddToken(TokenType::INT_LIT, buf);
+				AddToken(TokenType::INT_LIT, buf, (std::uint16_t)buf[0]);
 			}
 		}
 		// Integer literal
@@ -242,19 +250,31 @@ std::vector<Token> Lexer::Tokenize() {
 					logger.Warning("Integer literal \"" + buf + "\" too large to be represented with 16 bits.", "", line);
 			}
 
-			// Cast value to 16-bits and add the token
-			AddToken(TokenType::INT_LIT, std::to_string((std::uint16_t)value));
+			// Cast value to 16-bits and add the token, ALSO pass the original value for use later
+			AddToken(TokenType::INT_LIT, std::to_string((std::uint16_t)value), value);
 		}
-		// Identifiers and instructions
-		// Distinction between registers, instructions and identifiers happen during generation
-		// For now, all are handled as identifiers
+		// Instructions, registers and other identifiers
 		else if (std::isalpha(src.At().value())) {
 			// Fill buffer
 			while (src.At().has_value() && std::isalnum(src.At().value())) {
 				buf.push_back(src.Eat());
 			}
 
-			// Add token
+			// If token is valid register
+			auto reg_it = valid_register_map.find(buf);
+			if (reg_it != valid_register_map.end()) {
+				AddToken(TokenType::REGISTER, buf);
+				continue;
+			}
+
+			// If token is valid instruction
+			auto inst_it = valid_instruction_map.find(buf);
+			if (inst_it != valid_instruction_map.end()) {
+				AddToken(TokenType::INSTRUCTION, buf);
+				continue;
+			}
+
+			// If none of the above, it's an identifer for something else (e.g. a label)
 			AddToken(TokenType::IDENT, buf);
 		}
 		// Unknown
@@ -276,7 +296,7 @@ bool Lexer::Good() const {
 	return logger.Good();
 }
 
-void Lexer::AddToken(TokenType type, std::string_view lit) {
-	Token t(type, line, col, lit);
+void Lexer::AddToken(TokenType type, std::string_view lit,std::uint16_t value) {
+	Token t(type, line, col, lit, value);
 	tokens.push_back(t);
 }
