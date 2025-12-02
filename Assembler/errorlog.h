@@ -31,13 +31,15 @@ enum class LoggingLevel {
 
 class ErrorLog {
 public:
+	ErrorLog();
+
 	// The output stream determines where the log goes. It can be to the terminal (std::cout), 
 	// to a file or somewhere else, your choice :)
 	ErrorLog(const std::string& name, std::ostream& output_stream, LoggingLevel logging_level);
 	
 	// A scuffed way to copy a logger :/
 	// Kinda like a copy constructor, but you have to give the new name of the logger aswell
-	ErrorLog(const std::string& name, const ErrorLog& other);	
+	ErrorLog(const std::string& name, const ErrorLog& other);
 
 	// I feel like this is really messy, can this be cleaned up?
 	void Log(std::string_view msg, std::string_view desc = "", const std::optional<size_t>& line = std::nullopt) const;

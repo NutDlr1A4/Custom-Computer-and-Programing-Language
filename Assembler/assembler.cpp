@@ -1,6 +1,8 @@
 #include "assembler.h"
 
-Assembler::Assembler(std::ostream& ostream_log, LoggingLevel logging_level) 
+Assembler::Assembler() = default;
+
+Assembler::Assembler(std::ostream& ostream_log, LoggingLevel logging_level)
 	:
 	logger("Assembler", ostream_log, logging_level)
 {}

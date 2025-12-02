@@ -8,7 +8,8 @@
 
 class Assembler {
 public:
-	Assembler(std::ostream& ostream_log, LoggingLevel logging_level);
+	Assembler(); // No logging
+	Assembler(std::ostream& ostream_log, LoggingLevel logging_level); // Logging
 
 	std::vector<std::uint8_t> Assemble(std::istream& file);
 	std::vector<std::uint8_t> Assemble(const std::string& input_filepath);

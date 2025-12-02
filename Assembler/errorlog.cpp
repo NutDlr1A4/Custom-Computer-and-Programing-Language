@@ -1,5 +1,12 @@
 #include "errorlog.h"
 
+ErrorLog::ErrorLog()
+	:
+	name(""),
+	ost(std::cout),
+	level(LoggingLevel::NONE) {
+}
+
 ErrorLog::ErrorLog(const std::string& name, std::ostream& output_stream, LoggingLevel logging_level)
 	:
 	name(name),
@@ -50,14 +57,16 @@ LoggingLevel ErrorLog::GetLoggingLevel() const {
 void ErrorLog::GenericLog(LogType type, std::string_view msg, std::string_view desc, const std::optional<size_t>& line) const {
 	// Some yummy sphaggeti formatting!
 
+	if (level == LoggingLevel::NONE) return;
+
 	ost << "[" << name << "] ";
 	switch (type) {
-	case ErrorLog::LogType::LOG:
+	case LogType::LOG:
 		break;
-	case ErrorLog::LogType::WARNING:
+	case LogType::WARNING:
 		ost << "Warning";
 		break;
-	case ErrorLog::LogType::ERROR:
+	case LogType::ERROR:
 		ost << "Error";
 		break;
 	default:
