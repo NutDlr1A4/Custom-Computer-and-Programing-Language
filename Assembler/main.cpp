@@ -11,7 +11,7 @@ int main() {
 		std::string output = "Assembled\\" + name + "_assembled";
 
 		Assembler assembler(std::cout, LoggingLevel::ALL);
-		assembler.Assemble(input);
+		assembler.AssembleToFile(input, output, Assembler::Format::LOGISIM_2_RAW);
 	}
 
 	return 0;
